@@ -19,7 +19,7 @@ classdef surgery < handle
             
             % acurite settings
             s.acurite = serial(['COM' num2str(settings.acuriteComPort)]);
-            f.open(s.acurite);
+            fopen(s.acurite);
             
             % arduino settings
             s.arduino = serial(['COM' num2str(settings.arduinoComPort)]);
@@ -53,17 +53,16 @@ classdef surgery < handle
         end
         
         % get the current XYZ coordinates from the accurite
-        function [x,y,z] = getXYZ(s)
+        function xyz = getXYZ(s)
             % query
             fwrite(s.acurite,2);
             % read value
             a = fread(s.acurite,48);
-            % close port
-            fclose(s.acurite);
             % convert ASCII to double
             x = str2num(char(a(3:12))');
             y = str2num(char(a(19:28))');
             z = str2num(char(a(35:44))');
+            xyz = [x,y,z];
             s.position = [x,y,z];
         end
         
@@ -90,6 +89,53 @@ classdef surgery < handle
         function calibrateSteppers(s)
             % method for testing each stepper and getting speed curve, step
             % size, etc.
+            
+            % check which axis each motor controls
+            for motorN = 1:3
+                % check which axis we are controlling
+                %get initial position
+                xyz1 = s.getXYZ;
+                % step 10 steps in each step style 
+                for stepStyle = s.settings.stepStyleToUse;
+                s.driveStepper(motorN,0,round(max(s.settings.stepperSpeedRange)/2),stepStyle,10);
+                end
+                s.waitforMove;
+                xyz2 = s.getXYZ;
+                % figure out which axis moved
+                [~,idx] = max(abs(xyz1-xyz2));
+                if idx == 1
+                    s.xMotorIdx = motorN;
+                elseif idx ==2
+                    s.yMotorIdx = motorN;
+                elseif idx ==3;
+                    s.zMotorIdx = motorN;
+                end
+            end
+            
+            % Now for each motor let's get mm / min, um per step
+            % for each of the different step style and for a range of
+            % speeds
+            
+            
+                        
+                
+                for stepStyle = s.settings.stepStyleToUse;
+                    
+                end
+            end
+        end
+        
+        % block command line execution until stereotax movement has stopped
+        % for at least 1 second
+        function waitForMove(s)
+            xyz1 = s.getXYZ;
+            pause(1);
+            xyz2 = s.getXYZ;
+            while sum(abs(xyz1-xyz2))>0
+                pause(1);
+                xyz1 = xyz2;
+                xyz2 = s.getXYZ;
+            end
         end
         
         % get Image and save it tot he structure
@@ -142,22 +188,31 @@ classdef surgery < handle
         end
         
         % go to a coordinate
-        function goto(x,y,z)
+        function goto(s,x,y,z)
         end
         
         % fit bregma by drawing over the coronal suture
-        function fitCoronalSuture()
+        function fitCoronalSuture(s)
         end
         
         % fit the midline by drawing over the saggital suture
-        function fitMidlineSuture()
+        function fitMidlineSuture(s)
         end
         
         % fit a straight line by drawing over the lambdoid suture
-        function fitLambdoidSuture()
+        function fitLambdoidSuture(s)
         end
         
         
+        % show a GUI motor control panel
+        function controlPanel(s)
+        end
+        
+        % quit the surgery session, clase all serial port communications
+        function quit(s)
+            fclose(s.arduino);
+            fclose(s.acurite);
+        end
         
         
     end

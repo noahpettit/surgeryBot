@@ -12,8 +12,8 @@ settings.stepperSpeedRange = [1, 100]; % in rpm - the speed range available to e
 
 
 %% DO NOT EDIT
-settings.stepStyleNames = {'SINGLE', 'DOUBLE', 'INTERLEAVE', 'MICROSTEP');
-
+settings.stepStyleNames = {'SINGLE', 'DOUBLE', 'INTERLEAVE', 'MICROSTEP'};
+settings.stepStylePreference = [4,3,2,1]; % the order of preference in which to use the step styles
 
 
 end
