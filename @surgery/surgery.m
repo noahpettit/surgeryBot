@@ -1,15 +1,23 @@
 classdef surgery < handle
-    %SURGERY Summary of this class goes here
-    %   Detailed explanation goes here
+    %SURGERY Class for handling control of motorized stereotaxic, as well
+    %as aquiring images and data during the surgery, and perfomring
+    %operations on them (such as fitting bregma).
+    %   To do notes: Think about creating separate class just for
+    %   controlling stereotaxic, that can be called by a more general class
+    %   designed for data aquisition and processing during the surgery.
+    %   Calibration data should ultimately be stored in settings field so
+    %   that it can be loaded from a settings file
     
     properties (SetAccess = public)
-        acurite
-        arduino
-        usbcam
-        position
-        steppers
-        data
-        settings
+        metadata % information specific to the current surgery, such as animal name, weight, notes, etc
+        acurite % the serial object for communicating with the acurite
+        arduino % arduino object for communicating with the arduino
+        usbcam % image aquisition object 
+        position % current position information
+        steppers % settings for the steppers
+        data % all data including images, stacks, 
+        settings % hardcoded settings information specific to each surgery rig
+        axis % calibration data for each axis - includes um per step, speed curves, etc
     end
     
     methods
@@ -94,15 +102,15 @@ classdef surgery < handle
             for motorN = 1:3
                 % check which axis we are controlling
                 %get initial position
-                xyz1 = s.getXYZ;
+                xyz0 = s.getXYZ;
                 % step 10 steps in each step style 
                 for stepStyle = s.settings.stepStyleToUse;
-                s.driveStepper(motorN,0,round(max(s.settings.stepperSpeedRange)/2),stepStyle,10);
+                s.driveStepper(motorN,1,round(max(s.settings.stepperSpeedRange)/2),stepStyle,10);
                 end
                 s.waitforMove;
-                xyz2 = s.getXYZ;
+                xyz1 = s.getXYZ;
                 % figure out which axis moved
-                [~,idx] = max(abs(xyz1-xyz2));
+                [~,idx] = max(abs(xyz0-xyz1));
                 if idx == 1
                     s.xMotorIdx = motorN;
                 elseif idx ==2
@@ -112,29 +120,90 @@ classdef surgery < handle
                 end
             end
             
-            % Now for each motor let's get mm / min, um per step
+            s.xyzMotorIdx = [s.xMotorIdx, s.yMotorIdx, s.zMotorIdx]; 
+            
+            % Now for each axis let's get mm / min, um per step
             % for each of the different step style and for a range of
             % speeds
             
+            speeds = s.settings.stepperSpeedRange(1):10:s.settings.stepperSpeedRange(2);
             
-                        
-                
+            % for each axis (x,y,z is 1,2,3)
+            for axis = 1:3   
+                % for each style of step
+                stylei = 0;
                 for stepStyle = s.settings.stepStyleToUse;
-                    
+                    stylei = stylei+1;
+                    % for every 10th speed value in the range
+                    spi = 0;
+                    for sp = speeds;
+                        spi = spi+1;
+                        % get initial position
+                        xyz0 = s.getXYZ;
+                        % send motor command for 50 steps
+                        nSteps = 50;
+                        t0 = tic;
+                        s.driveStepper(s.xyzMotorIdx(axis),1,sp,stepStyle,nSteps);
+                        % record movement relative to xyz1 and t1 in space
+                        % and time, respectively, at 10 Hz
+                        [mTrace, tTrace] = s.recordMovement(t0, xyz0, 10);  
+                        % compute amount moved
+                        
+                        s.axis(axis).calibrationCurves{spi,stylei} = [mTrace; tTrace];
+                        
+                    end
                 end
             end
         end
         
+       
+        function [mTrace, tTrace] = recordMovement(s, axisIdx, t0, xyz0, Hz)
+        % simple function to start recording single axis movement immediately until the movement has
+        % stopped for at least 1 second, or mTrace has exceeded 1000000
+        % (1 million) values. Return warning if samples are dropped
+        % returns movement trace for specified axis, and the approximate time points at which those samples were collected (relative to t0); 
+        % - REWRITE using timer obj
+            interval = 1/Hz;
+            mTrace = [];
+            tTrace(1) = toc(t0);
+            xyz1 = s.getXYZ-xyz0;
+            mTrace = [mTrace, xyz1(axisIdx)];
+            timeSinceLastMove = 0;
+            
+            while length(mTrace)<1000000 && timeSinceLastMove<1
+                % check to see if the time since last sample is greater than the
+                % interval
+                if (toc(t0)-tTrace(end))>interval
+                    % add timepoint 
+                    tTrace = [tTrace, toc(t0)];
+                    xyz1 = s.getXYZ-xyz0;
+                    mTrace = [mTrace, xyz1(axisIdx)];
+                    if mTrace(end)~=mTrace(end-1)
+                        % then it moved - reset the time to 0
+                        timeSinceLastMove = 0;
+                    else
+                        % otherwise there was not a movement so increase
+                        % the counter
+                        timeSinceLastMove = timeSinceLastMove+diff(tTrace(end-1:end));
+                    end
+                end
+            end
+            
+            % once while loop is broken, return. 
+            
+            
+        end
+        
         % block command line execution until stereotax movement has stopped
-        % for at least 1 second
+        % for at least 1 second 
         function waitForMove(s)
-            xyz1 = s.getXYZ;
+            xyz0 = s.getXYZ;
             pause(1);
-            xyz2 = s.getXYZ;
-            while sum(abs(xyz1-xyz2))>0
+            xyz1 = s.getXYZ;
+            while sum(abs(xyz0-xyz1))>0
                 pause(1);
-                xyz1 = xyz2;
-                xyz2 = s.getXYZ;
+                xyz0 = xyz1;
+                xyz1 = s.getXYZ;
             end
         end
         
