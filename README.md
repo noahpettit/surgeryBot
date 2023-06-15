@@ -38,10 +38,10 @@ Although slightly more powerful motors would probably be better, especially if y
 I used this: https://www.adafruit.com/product/1438 with an arduino uno. It needs to have its own power source that provides enough current to drive whatever steppers you are using. I also STRONGLY suggest having an inline power switch so that you can quickly turn off the system if something goes wrong. The last thing you want is for a bug in your code to cause the stepper motor to drive the arm too fast or beyond its limits and potentially damage it. If using long-term, consider incorporating limit switches.
 
 ## Cables
-computer to arduino USB
-power cable for stepper motor driver
-wires to connect stepper with stepper motor driver
-serial to serial or serial to USB to connect accurite with computer and get position read-out
+ - computer to arduino USB
+ - power cable for stepper motor driver
+ - wires to connect stepper with stepper motor driver
+ - serial to serial or serial to USB to connect accurite with computer and get position read-out
 
 
 # Software
