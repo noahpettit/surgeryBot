@@ -46,10 +46,10 @@ serial to serial or serial to USB to connect accurite with computer and get posi
 
 # Software
 
-The basic idea is thatyou initialize a matlab surgery object that handles communication with the hardware. it reads in position data from the accurite and directs the stepper to move forwards or backwards. 
+The basic idea is thatyou initialize a matlab surgery object that handles communication with the hardware (through serial communication). it reads in position data from the accurite and directs the stepper to move forwards or backwards. 
 The object can self-calibrate using encoder feedback to get um per step of the stepper, and then also operates in closed-loop during execution to ensure that targets are reached and not exceeded. 
 
-Test all the code yourself and use at your own risk!
+Test all the code yourself and use at your own risk! 
 
 Using that object as a simple interface with the harware, you can write matlab scripts that contain cells that you might execute during particular stages of your surgery (see Protocols folder for an example). 
 
